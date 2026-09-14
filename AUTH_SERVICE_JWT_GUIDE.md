@@ -17,31 +17,40 @@ The client can send that JWT to other protected services. Those services can ver
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Controller as AuthController
-    participant Security as Spring Security
-    participant Details as JpaUserDetailsService
-    participant Database as H2 users table
-    participant JWT as JwtProvider
+  participant C
+  participant AC
+  participant S
+  participant D
+  participant DB
+  participant J
 
-    Client->>Controller: POST /api/auth/register (email, password)
-    Controller->>Database: Does this email already exist?
-    Controller->>Controller: BCrypt-hash password
-    Controller->>Database: Save User
-    Controller-->>Client: id and email
+  C->>AC: POST /register
+  AC->>DB: check email
+  AC->>AC: hash password
+  AC->>DB: save user
+  AC-->>C: id,email
 
-    Client->>Controller: POST /api/auth/login (email, password)
-    Controller->>Security: AuthenticationManager.authenticate(...)
-    Security->>Details: loadUserByUsername(email)
-    Details->>Database: Find user by email
-    Database-->>Details: Stored email, BCrypt hash, role
-    Details-->>Security: UserDetails
-    Security->>Security: Compare submitted password with stored hash
-    Security-->>Controller: Authentication succeeds or fails
-    Controller->>JWT: Generate signed token with email as subject
-    JWT-->>Controller: JWT string
-    Controller-->>Client: { "token": "..." }
+  C->>AC: POST /login
+  AC->>S: authenticate
+  S->>D: loadUser
+  D->>DB: find email
+  DB-->>D: user row
+  D-->>S: user details
+  S->>S: compare password
+  S-->>AC: auth result
+  AC->>J: gen token
+  J-->>AC: token
+  AC-->>C: {token}
 ```
+  
+**Diagram Legend**
+
+- `C`: Client
+- `AC`: AuthController
+- `S`: Spring Security (authentication manager)
+- `D`: `JpaUserDetailsService` (loads users)
+- `DB`: H2 users table (persistence)
+- `J`: `JwtProvider` (JWT creation/validation)
 
 ## 3. Main Files and Their Responsibilities
 
