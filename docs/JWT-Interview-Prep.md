@@ -24,15 +24,15 @@ Goal: concise interview-ready notes about JWTs, how your repo uses them, common 
 
 4) How your repo implements tokens (mapping to files)
 - Token creation & validation shared library: `common/src/main/java/com/example/common/security/JwtProvider.java` — builds tokens and validates them using an HMAC secret.
-- Auth controller uses shared provider: `auth-service/src/main/java/com/example/auth/web/AuthController.java` calls `JwtProvider.generateToken(...)`.
+- Auth controller uses shared provider: `user-service/src/main/java/com/example/user/web/AuthController.java` calls `JwtProvider.generateToken(...)`. (`auth-service` was merged into `user-service` — identity and profile are one bounded context.)
 - JwtFilter in services (example): `product-service/src/main/java/com/example/product/security/JwtFilter.java` — extracts token, calls `JwtProvider.validateAndGetClaims(token)`, sets Spring Security `Authentication` with `sub` as principal.
 - Configured shared secret: each service defines a `JwtProvider` bean in its `SecurityConfig` with `@Value("${jwt.secret:0123456789abcdef0123456789abcdef}")` so you can set `JWT_SECRET` as env var to share the same key across services.
-- Note: `auth-service/src/main/java/com/example/auth/security/JwtUtil.java` exists but is not used by the controller; the active flow uses `JwtProvider` from `common`.
+- Note: the previously-unused `JwtUtil.java` (formerly in the auth service) was removed during the merge; the active flow uses `JwtProvider` from `common`.
 
 5) Practical interview exercises (do these locally)
 - Exercise A — Verify token flow end-to-end:
-  1. Start `auth-service` and `product-service`.
-  2. Register/login via `auth-service` to get a JWT.
+  1. Start `user-service` and `product-service`.
+  2. Register/login via `user-service` (`/api/auth/register`, `/api/auth/login`) to get a JWT.
   3. Call protected `product-service` endpoint with `Authorization: Bearer <token>` and confirm access.
 - Exercise B — Break it intentionally:
   1. Change `jwt.secret` in `product-service` to a different value and confirm requests fail with 401.
@@ -57,7 +57,7 @@ Goal: concise interview-ready notes about JWTs, how your repo uses them, common 
 - Run tests for JWT provider (Maven):
 
 ```bash
-mvn -pl common test -Dtest=com.example.auth.security.JwtProviderTest
+mvn -pl user-service test -Dtest=com.example.user.security.JwtProviderTest
 ```
 
 9) If you want, I can:

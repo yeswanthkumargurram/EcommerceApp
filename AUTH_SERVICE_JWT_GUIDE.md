@@ -1,8 +1,10 @@
 # Auth Service and JWT Guide
 
-This guide explains the `auth-service` in this project from first principles. It describes what the current code actually does, why each part exists, and how JSON Web Tokens (JWTs) fit into a microservice application.
+> **Note:** `auth-service` was merged into `user-service` (single identity + profile bounded context). The code below now lives under `user-service/src/main/java/com/example/user/...`; this guide keeps the historical `auth-service` framing for the JWT concepts, but all file paths point to their new location.
 
-## 1. What problem does auth-service solve?
+This guide explains the identity/authentication portion of `user-service` in this project from first principles. It describes what the current code actually does, why each part exists, and how JSON Web Tokens (JWTs) fit into a microservice application.
+
+## 1. What problem does the identity portion of user-service solve?
 
 Most application endpoints need to know who is making a request. For example, an order service may need to know which customer is placing an order.
 
@@ -56,14 +58,14 @@ sequenceDiagram
 
 | File | Responsibility |
 | --- | --- |
-| [auth-service/src/main/java/com/example/auth/AuthServiceApplication.java](auth-service/src/main/java/com/example/auth/AuthServiceApplication.java) | Starts the Spring Boot application. |
-| [auth-service/src/main/java/com/example/auth/web/AuthController.java](auth-service/src/main/java/com/example/auth/web/AuthController.java) | Defines the register and login HTTP endpoints. |
-| [auth-service/src/main/java/com/example/auth/security/SecurityConfig.java](auth-service/src/main/java/com/example/auth/security/SecurityConfig.java) | Creates Spring Security beans and access rules. |
-| [auth-service/src/main/java/com/example/auth/service/JpaUserDetailsService.java](auth-service/src/main/java/com/example/auth/service/JpaUserDetailsService.java) | Teaches Spring Security how to load a user from this database. |
-| [auth-service/src/main/java/com/example/auth/model/User.java](auth-service/src/main/java/com/example/auth/model/User.java) | JPA entity mapped to the `users` table. |
-| [auth-service/src/main/java/com/example/auth/repository/UserRepository.java](auth-service/src/main/java/com/example/auth/repository/UserRepository.java) | Database access and lookup by email. |
+| [user-service/src/main/java/com/example/user/UserServiceApplication.java](user-service/src/main/java/com/example/user/UserServiceApplication.java) | Starts the Spring Boot application. |
+| [user-service/src/main/java/com/example/user/web/AuthController.java](user-service/src/main/java/com/example/user/web/AuthController.java) | Defines the register, login, password-reset, and social-login HTTP endpoints. |
+| [user-service/src/main/java/com/example/user/security/SecurityConfig.java](user-service/src/main/java/com/example/user/security/SecurityConfig.java) | Creates Spring Security beans and access rules. |
+| [user-service/src/main/java/com/example/user/service/JpaUserDetailsService.java](user-service/src/main/java/com/example/user/service/JpaUserDetailsService.java) | Teaches Spring Security how to load a user from this database. |
+| [user-service/src/main/java/com/example/user/model/User.java](user-service/src/main/java/com/example/user/model/User.java) | JPA entity mapped to the `users` table. |
+| [user-service/src/main/java/com/example/user/repository/UserRepository.java](user-service/src/main/java/com/example/user/repository/UserRepository.java) | Database access and lookup by email. |
 | [common/src/main/java/com/example/common/security/JwtProvider.java](common/src/main/java/com/example/common/security/JwtProvider.java) | Shared JWT creation and signature validation code. |
-| [auth-service/src/main/resources/application.yml](auth-service/src/main/resources/application.yml) | H2 database, server port, and development JWT secret. |
+| [user-service/src/main/resources/application.yml](user-service/src/main/resources/application.yml) | H2 database, server port, and development JWT secret. |
 
 ## 4. The User Entity and Database
 
@@ -286,15 +288,15 @@ A protected service normally needs a filter that:
 5. Creates an authenticated Spring Security object using the subject and appropriate authorities.
 6. Rejects invalid or expired tokens with `401 Unauthorized`.
 
-### What this auth service currently does not do
+### What this service currently does not do
 
-`auth-service` registers `JwtFilter` before Spring Security's username/password filter. It reads `Authorization: Bearer <token>`, uses `JwtProvider` to validate the signature and expiry, and puts the email subject into Spring Security's authentication context. Invalid or expired bearer tokens receive HTTP `401 Unauthorized`.
+`user-service` registers `JwtFilter` before Spring Security's username/password filter. It reads `Authorization: Bearer <token>`, uses `JwtProvider` to validate the signature and expiry, and puts the email subject into Spring Security's authentication context. Invalid or expired bearer tokens receive HTTP `401 Unauthorized`.
 
-The `JwtUtil` class in the auth service is not used by `AuthController`; the active login flow uses the shared `common` module's `JwtProvider`.
+The unused duplicate `JwtUtil` class (previously in the auth service) was removed during the merge; the active login flow uses only the shared `common` module's `JwtProvider`.
 
 ## 11. Configuration and Secrets
 
-The service runs on port `8080`. Its configured development secret is in [auth-service/src/main/resources/application.yml](auth-service/src/main/resources/application.yml):
+The service runs on port `8080`. Its configured development secret is in [user-service/src/main/resources/application.yml](user-service/src/main/resources/application.yml):
 
 ```yaml
 jwt:
@@ -325,7 +327,7 @@ At present, the JWT contains only the email subject; it does not contain the rol
 From the workspace root, start the service with Maven:
 
 ```powershell
-mvn -pl auth-service -am spring-boot:run
+mvn -pl user-service -am spring-boot:run
 ```
 
 Register a user:
@@ -348,7 +350,7 @@ The login response contains the token. A new application run uses a fresh in-mem
 
 ## 14. Tests and Current Gaps
 
-[auth-service/src/test/java/com/example/auth/UserRepositoryTest.java](auth-service/src/test/java/com/example/auth/UserRepositoryTest.java) is a JPA repository test using H2. It is intended to save a user and then find that user by email.
+[user-service/src/test/java/com/example/user/UserRepositoryTest.java](user-service/src/test/java/com/example/user/UserRepositoryTest.java) is a JPA repository test using H2. It is intended to save a user and then find that user by email.
 
 The service now includes several production-oriented foundations:
 
