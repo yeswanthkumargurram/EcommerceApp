@@ -86,7 +86,9 @@ public class AuthController {
             log.warn("Login rejected for email={}", request.getEmail());
             throw exception;
         }
-        String token = jwtProvider.generateToken(request.getEmail());
+        User user = repo.findByEmail(request.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST, "invalid email or password"));
+        String token = jwtProvider.generateToken(user.getEmail(), Map.of("userId", user.getId(), "role", user.getRole()));
         log.info("User authenticated: email={}", request.getEmail());
         return ResponseEntity.ok(new AuthResponse(token));
     }
@@ -167,7 +169,7 @@ public class AuthController {
             log.info("Social identity linked: userId={}, provider={}", user.getId(), provider);
         }
 
-        String token = jwtProvider.generateToken(user.getEmail());
+        String token = jwtProvider.generateToken(user.getEmail(), Map.of("userId", user.getId(), "role", user.getRole()));
         return ResponseEntity.ok(new AuthResponse(token));
     }
 }
