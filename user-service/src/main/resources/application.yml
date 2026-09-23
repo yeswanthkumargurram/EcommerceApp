@@ -16,3 +16,6 @@ app:
   password-reset:
     link-base: http://localhost:8080/reset-password?token=
     expiry-minutes: 30
+logging:
+  level:
+    com.example.user.config: INFO

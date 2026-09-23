@@ -1,15 +1,12 @@
 package com.example.product.search;
 
 import java.util.List;
+import org.springframework.data.elasticsearch.annotations.Query;
+import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 
-/**
- * Lightweight repository interface used when Elasticsearch is enabled.
- *
- * When Elasticsearch is unavailable or intentionally disabled for local
- * development, the application will run without an implementation of this
- * interface and `ProductSearchService` will fall back to DB queries.
- */
-public interface ProductSearchRepository {
+public interface ProductSearchRepository extends ElasticsearchRepository<ProductDocument, String> {
+    @Query("""
+        {"multi_match": {"query": "?0", "fields": ["name^2", "description", "category"], "fuzziness": "AUTO"}}
+        """)
     List<ProductDocument> search(String query);
-    void save(ProductDocument doc);
 }

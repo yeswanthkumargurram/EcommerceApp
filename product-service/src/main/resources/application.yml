@@ -8,11 +8,6 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-  # Disable Elasticsearch auto-configuration when ES is unavailable locally.
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.elasticsearch.ElasticsearchDataAutoConfiguration
-      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
   elasticsearch:
     uris: http://localhost:9200
   h2:
@@ -28,3 +23,8 @@ jwt:
 springdoc:
   swagger-ui:
     enabled: false
+logging:
+  level:
+    com.example.product.search: DEBUG
+    com.example.product.config: INFO
+    org.springframework.data.elasticsearch.client.WIRE: trace
