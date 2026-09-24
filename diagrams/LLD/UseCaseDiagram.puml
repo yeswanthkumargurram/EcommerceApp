@@ -1,0 +1,51 @@
+@startuml UseCaseDiagram
+left to right direction
+skinparam packageStyle rectangle
+actor "Guest" as Guest
+actor "Registered User" as User
+actor "Payment Gateway" as PG
+actor "Email/Notification Provider" as Notify
+
+Guest <|-- User
+
+rectangle "E-Commerce Platform" {
+  usecase "Register Account" as UC1
+  usecase "Login" as UC2
+  usecase "Reset Password" as UC3
+  usecase "Browse Products" as UC4
+  usecase "Search Products" as UC5
+  usecase "View Product Details" as UC6
+  usecase "Manage Profile" as UC7
+  usecase "Add Item to Cart" as UC8
+  usecase "Update / Remove Cart Item" as UC9
+  usecase "Checkout Cart" as UC10
+  usecase "Place Order" as UC11
+  usecase "View Order History" as UC12
+  usecase "Track Order Status" as UC13
+  usecase "Make Payment" as UC14
+  usecase "Receive Notifications" as UC15
+}
+
+Guest --> UC1
+Guest --> UC2
+Guest --> UC4
+Guest --> UC5
+Guest --> UC6
+
+User --> UC3
+User --> UC7
+User --> UC8
+User --> UC9
+User --> UC10
+User --> UC11
+User --> UC12
+User --> UC13
+
+UC10 ..> UC11 : <<include>>
+UC11 ..> UC14 : <<include>>
+UC14 --> PG
+UC11 ..> UC15 : <<include>>
+UC14 ..> UC15 : <<include>>
+UC15 --> Notify
+
+@enduml

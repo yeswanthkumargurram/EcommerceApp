@@ -1,0 +1,56 @@
+@startuml SystemArchitecture
+skinparam componentStyle rectangle
+left to right direction
+
+actor "Client (Web / Mobile / Postman)" as Client
+
+cloud "API Gateway\n(Spring Cloud Gateway)\nRouting + Rate Limiting" as Gateway
+
+package "Microservices" {
+  [user-service\n:8080] as UserSvc
+  [product-service\n:8081] as ProductSvc
+  [order-service\n:8082] as OrderSvc
+  [inventory-service\n:8083] as InventorySvc
+  [cart-service\n:8085] as CartSvc
+  [payment-service\n:8086] as PaymentSvc
+  [notification-service\n:8087] as NotifySvc
+}
+
+queue "Kafka\n(orders, inventory-events,\npayment-events, checkout-requested)" as Kafka
+database "MySQL\n(one schema per service)" as MySQL
+database "Redis\n(cart cache + rate limiter)" as Redis
+database "Elasticsearch\n(product search index)" as ES
+cloud "Mock Payment Gateway" as MockPG
+cloud "Logging Email Provider" as Email
+
+Client --> Gateway
+Gateway --> UserSvc
+Gateway --> ProductSvc
+Gateway --> OrderSvc
+Gateway --> InventorySvc
+Gateway --> CartSvc
+Gateway --> PaymentSvc
+Gateway --> NotifySvc
+
+UserSvc --> MySQL
+ProductSvc --> MySQL
+OrderSvc --> MySQL
+InventorySvc --> MySQL
+CartSvc --> MySQL
+PaymentSvc --> MySQL
+NotifySvc --> MySQL
+
+ProductSvc --> ES
+CartSvc --> Redis
+Gateway --> Redis
+
+OrderSvc --> Kafka
+InventorySvc --> Kafka
+PaymentSvc --> Kafka
+CartSvc --> Kafka
+NotifySvc --> Kafka
+
+PaymentSvc --> MockPG
+NotifySvc --> Email
+
+@enduml

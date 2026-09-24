@@ -1,0 +1,36 @@
+@startuml OrderSagaSequence
+skinparam sequenceMessageAlign center
+participant Client
+participant "order-service" as Order
+participant "inventory-service" as Inventory
+participant "payment-service" as Payment
+participant "notification-service" as Notify
+
+Client -> Order : POST /api/orders (or Cart checkout)
+Order -> Order : save Order(status = PENDING)
+Order --> Inventory : Kafka "orders": OrderCreated
+Order --> Notify : OrderCreated (order placed notice)
+
+alt stock available for every line item
+    Inventory -> Inventory : decrement stock (all-or-nothing)
+    Inventory --> Payment : Kafka "inventory-events": InventoryReserved
+    Inventory --> Order : InventoryReserved (informational)
+
+    alt gateway approves
+        Payment -> Payment : save Payment(status = SUCCEEDED)
+        Payment --> Order : Kafka "payment-events": PaymentSucceeded
+        Payment --> Notify : PaymentSucceeded (receipt)
+        Order -> Order : status = CONFIRMED
+    else gateway declines
+        Payment -> Payment : save Payment(status = FAILED)
+        Payment --> Order : Kafka "payment-events": PaymentFailed
+        Payment --> Inventory : PaymentFailed (release reservation)
+        Payment --> Notify : PaymentFailed (cancellation notice)
+        Order -> Order : status = CANCELLED
+        Inventory -> Inventory : increment stock back (compensating transaction)
+    end
+else insufficient stock
+    Inventory --> Order : Kafka "inventory-events": InventoryReservationFailed
+    Order -> Order : status = CANCELLED
+end
+@enduml
