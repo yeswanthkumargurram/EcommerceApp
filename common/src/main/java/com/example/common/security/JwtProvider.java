@@ -8,6 +8,7 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
+import java.util.Map;
 
 public class JwtProvider {
     private final Key key;
@@ -21,7 +22,14 @@ public class JwtProvider {
     }
 
     public String generateToken(String subject) {
+        return generateToken(subject, Map.of());
+    }
+
+    /** Embeds extra claims (e.g. userId, role) so downstream services can authorize
+     * without an extra lookup call back to user-service. */
+    public String generateToken(String subject, Map<String, Object> extraClaims) {
         return Jwts.builder()
+                .setClaims(extraClaims)
                 .setSubject(subject)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
