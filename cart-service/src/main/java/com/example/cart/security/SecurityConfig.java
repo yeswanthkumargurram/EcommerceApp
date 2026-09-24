@@ -1,11 +1,9 @@
-package com.example.product.security;
+package com.example.cart.security;
 
 import com.example.common.security.JwtProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -17,25 +15,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider, Environment env) throws Exception {
-        boolean isDev = env.acceptsProfiles(Profiles.of("dev"));
-
+    public SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider) throws Exception {
         http.csrf().disable()
                 // H2 console renders in an iframe, so it needs same-origin frames allowed
                 .headers(headers -> headers.frameOptions().sameOrigin())
-                .authorizeHttpRequests(auth -> {auth
-                    .requestMatchers("/h2-console/**").permitAll()
-                    .requestMatchers("/api/products/**").permitAll();
-                    if (isDev) {
-                        auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
-                        auth.requestMatchers("/h2-console/**", "/h2-console").permitAll();
-                    }
-                    auth.anyRequest().authenticated();
-                })
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .anyRequest().authenticated())
                 .addFilterBefore(new JwtFilter(jwtProvider), org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);
-        if (isDev) {
-            http.headers().frameOptions().disable();
-        }
         return http.build();
     }
 }

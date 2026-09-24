@@ -33,7 +33,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, JwtProvider jwtProvider) throws Exception {
         http.csrf().disable()
+            // H2 console renders in an iframe, so it needs same-origin frames allowed
+            .headers(headers -> headers.frameOptions().sameOrigin())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/forgot-password",
                         "/api/auth/reset-password", "/api/auth/social/**", "/actuator/**").permitAll()
                 .requestMatchers("/api/auth/**", "/api/users/**").authenticated()
