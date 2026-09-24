@@ -1,0 +1,236 @@
+@startuml EcommerceServiceClassDiagram
+allowmixing
+top to bottom direction
+hide empty members
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "User Service" {
+
+  class AuthController {
+    +register(command): AuthResponse
+    +login(command): AuthResponse
+    +me(): Map
+    +forgotPassword(command)
+    +resetPassword(command)
+    +socialLogin(provider, command): AuthResponse
+  }
+  class UserProfileController {
+    +getOwnProfile(): UserProfile
+    +updateOwnProfile(command): UserProfile
+    +get(id): UserProfile
+    +update(id, command): UserProfile
+  }
+  class User {
+    +Long id
+    +String email
+    +String password
+    +String role
+  }
+  class UserProfile {
+    +Long id
+    +Long userId
+    +String email
+    +String firstName
+    +String lastName
+  }
+  class PasswordResetToken {
+    +Long id
+    +Long userId
+    +String token
+    +Instant expiryDate
+    +boolean used
+  }
+  class SocialIdentity {
+    +Long id
+    +Long userId
+    +String provider
+    +String providerUserId
+  }
+  interface UserRepository
+  interface UserProfileRepository
+  interface PasswordResetTokenRepository
+  interface SocialIdentityRepository
+  interface EmailService
+  class JwtProvider <<common>>
+
+  AuthController --> UserRepository
+  AuthController --> UserProfileRepository : creates profile on register
+  AuthController --> PasswordResetTokenRepository
+  AuthController --> SocialIdentityRepository
+  AuthController --> EmailService
+  AuthController --> JwtProvider : issues/validates tokens
+  UserProfileController --> UserProfileRepository
+  User "1" *-- "0..*" PasswordResetToken
+  User "1" *-- "0..*" SocialIdentity
+  User "1" -- "1" UserProfile : userId FK
+  note right of UserProfileController
+    Ownership enforced: caller's JWT email
+    must match the profile's email.
+  end note
+}
+
+package "Product Catalog Service" {
+  class ProductController
+  class CatalogService {
+    +getProduct(productId): Product
+    +search(query, filters): Page<Product>
+  }
+  class Product
+  class Category
+  class ProductImage
+  class ProductSpecification
+  interface ProductRepository
+  interface SearchIndex
+
+  ProductController --> CatalogService
+  CatalogService --> ProductRepository
+  CatalogService --> SearchIndex
+  Product "1" *-- "0..*" ProductImage
+  Product "1" *-- "0..*" ProductSpecification
+  Product "0..*" -- "0..*" Category : classified as
+}
+
+package "Cart Service" {
+  class CartController
+  class CartService {
+    +addItem(userId, command): Cart
+    +changeQuantity(userId, itemId, quantity): Cart
+    +checkout(userId): CheckoutRequested
+  }
+  class Cart
+  class CartItem
+  interface CartRepository
+  interface ProductCatalogClient
+  interface CartEventPublisher
+
+  CartController --> CartService
+  CartService --> CartRepository
+  CartService --> ProductCatalogClient : validates product
+  CartService --> CartEventPublisher : CheckoutRequested
+  Cart "1" *-- "1..*" CartItem
+  note right of CartRepository
+    Sample implementation: relational (MySQL/H2) via
+    CartRepository, with Redis as a cache-aside layer in
+    front of it - not MongoDB. The original HLD's "MongoDB
+    for flexible cart structures" wasn't needed once the
+    schema settled on a fixed cart/cart_item shape (see
+    Cart Service Database section below and
+    docs/CART_SERVICE.md).
+  end note
+}
+
+package "Order Service" {
+  class OrderController
+  class OrderService {
+    +placeOrder(command): Order
+    +getOrder(userId, orderId): Order
+    +updateDeliveryStatus(orderId, status)
+  }
+  class Order
+  class OrderItem
+  class DeliveryAddress
+  interface OrderRepository
+  interface OrderEventPublisher
+
+  OrderController --> OrderService
+  OrderService --> OrderRepository
+  OrderService --> OrderEventPublisher : OrderCreated
+  Order "1" *-- "1..*" OrderItem
+  Order "1" *-- "1" DeliveryAddress
+}
+
+package "Payment Service" {
+  class PaymentController
+  class PaymentService {
+    +authorize(command): Payment
+    +capture(paymentId): Payment
+    +refund(paymentId, amount): Payment
+  }
+  class Payment
+  class PaymentAttempt
+  interface PaymentRepository
+  interface PaymentGateway
+  interface PaymentEventPublisher
+
+  PaymentController --> PaymentService
+  PaymentService --> PaymentRepository
+  PaymentService --> PaymentGateway
+  PaymentService --> PaymentEventPublisher : PaymentSucceeded/Failed
+  Payment "1" *-- "1..*" PaymentAttempt
+}
+
+package "Inventory Service" {
+  class InventoryService {
+    +reserve(orderId, items): ReservationResult
+  }
+  class InventoryItem
+  class OrderCreatedListener
+  interface InventoryRepository
+
+  OrderCreatedListener --> InventoryService
+  InventoryService --> InventoryRepository
+}
+
+package "Notification Service" {
+  class NotificationListener
+  class NotificationService {
+    +sendOrderConfirmation(event)
+    +sendPaymentReceipt(event)
+  }
+  class Notification
+  interface NotificationRepository
+  interface EmailProvider
+
+  NotificationListener --> NotificationService
+  NotificationService --> NotificationRepository
+  NotificationService --> EmailProvider
+}
+
+cloud "API Gateway" as gateway
+queue "Kafka" as kafka
+cloud "Elasticsearch" as elasticsearch
+cloud "Redis" as redis
+cloud "Payment Provider" as paymentProvider
+cloud "Amazon SES" as ses
+
+note right of gateway
+  Target: Kong. Sample implementation: Spring Cloud Gateway
+  (api-gateway module) - path-based routing to every service
+  plus a Redis-backed RequestRateLimiter on the public
+  product-browsing route. See docs/API_GATEWAY.md.
+end note
+
+gateway --> AuthController
+gateway --> UserProfileController
+gateway --> ProductController
+gateway --> CartController
+gateway --> OrderController
+gateway --> PaymentController
+CatalogService --> elasticsearch
+CartService --> redis
+PaymentService --> paymentProvider
+NotificationService --> ses
+CartEventPublisher --> kafka
+OrderEventPublisher --> kafka
+PaymentEventPublisher --> kafka
+kafka --> OrderCreatedListener : OrderCreated
+kafka --> NotificationListener : order/payment events
+
+' Keep the independently deployable service groups stacked in the preview.
+UserProfile -[hidden]down-> Product
+Product -[hidden]down-> Cart
+Cart -[hidden]down-> Order
+Order -[hidden]down-> Payment
+Payment -[hidden]down-> InventoryItem
+InventoryItem -[hidden]down-> Notification
+
+note right of Cart
+  Cart stores productId and price snapshot.
+  It does not own Product rows.
+end note
+note right of Order
+  userId and productId are external IDs.
+  Item, price, and address data are immutable snapshots.
+end note
+@enduml
